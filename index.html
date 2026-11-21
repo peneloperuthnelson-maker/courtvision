@@ -1,0 +1,348 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="theme-color" content="#101827">
+<title>CourtVision — 3D Practice Preview</title>
+<style>
+:root{--bg:#101827;--panel:#1b2738;--line:#34445a;--ink:#f4f7fb;--muted:#a9b7c9;--orange:#f39a36;--blue:#258bea;--red:#df5151}
+*{box-sizing:border-box}body{margin:0;background:var(--bg);color:var(--ink);font:16px -apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif}
+header{padding:17px 16px 12px;background:#131f30;border-bottom:1px solid var(--line)}
+h1{font-size:23px;margin:0 0 4px}header p{margin:0;color:var(--muted);font-size:13px}
+main{max-width:900px;margin:auto;padding:13px;display:grid;gap:12px}
+.panel{background:var(--panel);border:1px solid var(--line);border-radius:16px;padding:13px}
+.controls{display:grid;grid-template-columns:1fr 1fr;gap:10px}
+label{font-size:12px;color:var(--muted);display:block;margin-bottom:6px}
+select,button{font:inherit;border-radius:11px;border:1px solid var(--line);padding:11px;background:#111d2c;color:var(--ink);width:100%}
+button{font-weight:650;cursor:pointer}button.primary{background:var(--orange);border-color:var(--orange);color:#17202d}
+button:active{transform:scale(.98)}
+.toolbar{display:grid;grid-template-columns:repeat(3,1fr);gap:8px;margin-top:10px}
+.toolbar button{font-size:13px;padding:10px 4px}.toolbar button.active{outline:2px solid var(--orange);background:#2b3544}
+.actions{display:grid;grid-template-columns:1fr 1.2fr 1fr;gap:8px;margin-top:10px}
+.steps{display:flex;gap:6px;overflow:auto;margin-top:10px}.steps button{min-width:38px;width:auto;padding:8px}
+.hint{font-size:12px;color:var(--muted);line-height:1.45}
+.info{display:grid;grid-template-columns:1fr auto;gap:8px;align-items:start}.info strong{font-size:15px}.info p{margin:5px 0 0;color:var(--muted);font-size:13px;line-height:1.4}
+.pill{font-size:12px;background:#26374c;border-radius:999px;padding:5px 9px;color:#dce8f5}
+.freezeBanner{display:none;position:absolute;z-index:8;top:10px;left:50%;transform:translateX(-50%);background:#f3a33b;color:#17202d;font-size:11px;font-weight:900;letter-spacing:.06em;padding:7px 11px;border-radius:999px;white-space:nowrap;box-shadow:0 3px 12px #0005}.switching .freezeBanner{display:block}.switching .avatar,.switching #ball3d{transition:none!important}\n#stageWrap{height:560px;min-height:480px;position:relative;overflow:hidden;border-radius:13px;background:linear-gradient(180deg,#172638 0%,#273d50 32%,#455666 54%,#a8794d 55%,#a8794d 100%);border:1px solid #647b83;perspective:none;touch-action:pan-y}
+#scene{position:absolute;inset:0;transform:none!important;transform-style:preserve-3d;z-index:1}
+#floor{position:absolute;width:94%;height:82%;left:3%;top:9%;background:#a8794d;border:6px solid #f3ead5;border-radius:4px;transform:none!important;box-shadow:0 20px 34px #10182099,inset 0 0 0 2px #805b39;z-index:1}
+#floor svg{width:100%;height:100%;display:block}
+.avatar{position:absolute;width:28px;height:66px;transform-style:preserve-3d;transform:translate(-50%,-85%);z-index:3;transition:left .85s ease,top .85s ease}
+.avatar .body{position:absolute;width:24px;height:35px;left:2px;top:20px;border-radius:9px 9px 6px 6px;background:var(--team);border:2px solid #f4f4f4;box-shadow:inset -5px 0 #0002}
+.avatar .head{position:absolute;width:18px;height:18px;left:5px;top:2px;border-radius:50%;background:#d6a77f;border:2px solid #fff}
+.avatar .leg{position:absolute;width:8px;height:22px;top:51px;background:#202a35;border-radius:5px}
+.avatar .leg.left{left:5px}.avatar .leg.right{right:5px}
+.avatar .number{position:absolute;top:29px;left:0;width:28px;text-align:center;font-size:10px;font-weight:900;color:white;text-shadow:0 1px 2px #000}
+.avatar.selected .body{outline:3px solid #ffe18a}
+#ball3d{position:absolute;width:13px;height:13px;border-radius:50%;background:#f6a13b;border:2px solid #fff;z-index:4;transform:translate(-50%,-50%);transition:left .8s,top .8s}
+#courtOverhead{position:absolute;inset:0;background:#24634d;border:2px solid #e7e0ca;border-radius:8px;overflow:hidden}
+#courtOverhead svg{width:100%;height:100%}
+#courtOverhead .dot{cursor:pointer}
+.viewlabel{position:absolute;top:9px;left:10px;background:#101827bb;padding:5px 8px;border-radius:8px;font-size:11px;z-index:6}
+#firstOverlay{display:none;position:absolute;inset:0;z-index:5;pointer-events:none}
+#firstOverlay .arms{position:absolute;bottom:-8px;left:50%;transform:translateX(-50%);width:180px;height:90px}
+#firstOverlay .arm{position:absolute;bottom:0;width:45px;height:95px;background:linear-gradient(90deg,#258bea,#1460a6);border:3px solid #e5edf2;border-radius:28px 28px 8px 8px}
+#firstOverlay .arm.left{left:12px;transform:rotate(25deg)}#firstOverlay .arm.right{right:12px;transform:rotate(-25deg)}
+#firstOverlay .caption{position:absolute;bottom:88px;left:0;right:0;text-align:center;font-size:12px;text-shadow:0 1px 3px #000}
+@media(min-width:720px){main{grid-template-columns:340px 1fr}.courtPanel{grid-column:2;grid-row:1 / span 2}.infoPanel{grid-column:1}.bottom{grid-column:1/-1}}
+
+.controlDeck{margin-top:13px;padding:12px;border:1px solid #40536b;border-radius:13px;background:#142235}
+.deckHeading{font-size:11px;font-weight:850;letter-spacing:.09em;color:#a9bfd5}
+.playerHeading{margin-top:14px}
+.playerButtons{display:grid;grid-template-columns:repeat(5,minmax(0,1fr));gap:6px;margin-top:7px}
+.playerButtons button{padding:9px 3px;font-size:16px;background:#1b3856;border-color:#42617e}
+.playerButtons button small{display:block;font-size:10px;color:#c7d8e8;margin-top:2px}
+.playerButtons button.active{background:#258bea;border-color:#a8d6ff;outline:2px solid #8dcaff}
+.lookRow{display:flex;align-items:center;justify-content:space-between;gap:8px;margin-top:14px}
+.lookRow .hint{margin:4px 0 0;max-width:190px}
+.resetButton{width:auto;padding:8px 10px;font-size:12px;white-space:nowrap}
+.lookPad{height:104px;margin-top:8px;border:1px solid #5c7794;border-radius:12px;background:radial-gradient(ellipse at center,#294763 0%,#1a3048 70%);position:relative;display:flex;align-items:center;justify-content:center;touch-action:none;user-select:none;cursor:grab;overflow:hidden}
+.lookPad:active{cursor:grabbing}
+.lookPad.disabled{opacity:.42;cursor:not-allowed}
+.padLabel{font-size:10px;letter-spacing:.12em;font-weight:800;color:#d9e8f6;pointer-events:none}
+.padCross{position:absolute;font-size:25px;color:#a9c7e3;opacity:.65;pointer-events:none}
+.lookStatus{margin:6px 0 0}
+@media(max-width:719px){.playerButtons{gap:5px}.lookPad{height:94px}}
+
+#stageWrap:before{content:"";position:absolute;inset:0 0 42% 0;background:repeating-linear-gradient(180deg,transparent 0 17px,#aebdca22 18px 20px),repeating-linear-gradient(90deg,#1b3043 0 34px,#29465c 34px 68px,#20384c 68px 102px);border-bottom:8px solid #d5d1c2;box-shadow:0 10px 28px #0008;z-index:0}
+#stageWrap:after{content:"";position:absolute;left:0;right:0;top:4%;height:8px;background:linear-gradient(90deg,transparent,#f6e9c8aa 20%,transparent 38%,#f6e9c8aa 62%,transparent 82%);filter:blur(5px);pointer-events:none;z-index:0}
+#scene{z-index:1}#floor{z-index:1}#avatars,#ball3d{z-index:3}#firstOverlay{z-index:5}
+#floor{background:#a8794d!important}
+#practicePanel{position:absolute;z-index:10;top:10px;right:10px;width:clamp(255px,31%,330px);max-height:calc(100% - 20px);overflow-y:auto;padding:11px;border:1px solid #7890a8;border-radius:13px;background:rgba(16,29,44,.96);backdrop-filter:blur(8px);box-shadow:0 8px 26px #0008}#practicePanel .panel{padding:10px;margin-top:8px;background:#1b2b40;border-radius:10px}#practicePanel .lookPad{height:65px;touch-action:none}@media(max-width:719px){#stageWrap{height:590px}#practicePanel{width:min(270px,calc(100% - 16px));top:8px;right:8px;max-height:calc(100% - 16px)}}
+</style>
+</head>
+<body>
+<header><h1>🏀 CourtVision</h1><p>3D practice preview · animated play steps · phone-friendly</p></header>
+<main>
+<section class="panel">
+ <div class="controls">
+  <div><label for="play">PLAY</label><select id="play"><option value="pistol">Pistol</option><option value="basic">5-out spacing</option></select></div>
+  <div><label for="position">YOUR POSITION</label><select id="position"><option value="1">1 · Point guard</option><option value="2">2 · Shooting guard</option><option value="3">3 · Small forward</option><option value="4">4 · Power forward</option><option value="5">5 · Center</option></select></div>
+ </div>
+ <section class="controlDeck" aria-label="Practice controls">
+  <div class="deckHeading">CAMERA VIEW</div>
+  <div class="toolbar">
+   <button class="active" data-view="overhead" type="button">Bird's-eye</button>
+   <button data-view="third" type="button">Third-person</button>
+   <button data-view="first" type="button">First-person</button>
+  </div>
+  <div class="deckHeading playerHeading">SWITCH PLAYER</div>
+  <div class="playerButtons" id="playerButtons" aria-label="Choose offensive player">
+   <button type="button" data-player="1" aria-label="Player 1, point guard">1 <small>PG</small></button>
+   <button type="button" data-player="2" aria-label="Player 2, shooting guard">2 <small>SG</small></button>
+   <button type="button" data-player="3" aria-label="Player 3, small forward">3 <small>SF</small></button>
+   <button type="button" data-player="4" aria-label="Player 4, power forward">4 <small>PF</small></button>
+   <button type="button" data-player="5" aria-label="Player 5, center">5 <small>C</small></button>
+  </div>
+  <div class="lookRow">
+   <div><div class="deckHeading">FREE LOOK</div><p class="hint">Swipe to look around. This does not move your player.</p></div>
+   <button id="resetCamera" class="resetButton" type="button">Reset view</button>
+  </div>
+  <div id="lookPad" class="lookPad" role="application" aria-label="Free look touchpad">
+   <span class="padLabel">SWIPE TO LOOK</span><span class="padCross">＋</span>
+  </div>
+  <p id="lookStatus" class="hint lookStatus">Choose first- or third-person to use free look.</p>
+ </section>
+ <div class="actions"><button id="prev">← Back</button><button class="primary" id="playPause">▶ Play</button><button id="next">Next →</button></div>
+ <div class="steps" id="steps"></div>
+</section>
+<section class="panel courtPanel">
+ <div id="stageWrap"><div class="freezeBanner" id="freezeBanner">⏸ SWITCHING MODE · EVERYONE FROZEN</div>
+  <div class="viewlabel" id="viewLabel">OVERHEAD · TACTICAL VIEW</div>
+  <div id="courtOverhead">
+   <svg viewBox="0 0 600 420" preserveAspectRatio="none">
+    <rect x="3" y="3" width="594" height="414" fill="#24634d" stroke="#f3ead5" stroke-width="5"/>
+    <path d="M300 4V416 M3 210H597" stroke="#f3ead5" stroke-width="3" fill="none"/>
+    <circle cx="300" cy="210" r="58" fill="none" stroke="#f3ead5" stroke-width="3"/>
+    <rect x="3" y="125" width="115" height="170" fill="none" stroke="#f3ead5" stroke-width="3"/>
+    <rect x="482" y="125" width="115" height="170" fill="none" stroke="#f3ead5" stroke-width="3"/>
+    <path d="M118 125 A110 110 0 0 1 118 295 M482 125 A110 110 0 0 0 482 295" fill="none" stroke="#f3ead5" stroke-width="3"/>
+    <circle cx="48" cy="210" r="7" fill="none" stroke="#f3ead5" stroke-width="3"/><circle cx="552" cy="210" r="7" fill="none" stroke="#f3ead5" stroke-width="3"/>
+    <g id="overPlayers"></g><circle id="overBall" cx="300" cy="75" r="8" fill="#f6a13b" stroke="#fff" stroke-width="2"/>
+   </svg>
+  </div>
+  <div id="scene" style="display:none">
+   <div id="floor"><svg viewBox="0 0 600 420" preserveAspectRatio="none">
+    <rect x="3" y="3" width="594" height="414" fill="#24634d" stroke="#f3ead5" stroke-width="5"/>
+    <path d="M300 4V416 M3 210H597" stroke="#f3ead5" stroke-width="3" fill="none"/>
+    <circle cx="300" cy="210" r="58" fill="none" stroke="#f3ead5" stroke-width="3"/>
+    <rect x="3" y="125" width="115" height="170" fill="none" stroke="#f3ead5" stroke-width="3"/>
+    <rect x="482" y="125" width="115" height="170" fill="none" stroke="#f3ead5" stroke-width="3"/>
+    <path d="M118 125 A110 110 0 0 1 118 295 M482 125 A110 110 0 0 0 482 295" fill="none" stroke="#f3ead5" stroke-width="3"/>
+   </svg></div>
+   <div id="avatars"></div><div id="ball3d"></div>
+  </div>
+  <div id="firstOverlay"><div class="caption">YOUR PLAYER'S VIEW · LOOK AHEAD TO READ THE FLOOR</div><div class="arms"><div class="arm left"></div><div class="arm right"></div></div></div>
+ </div>
+ <p class="hint" style="margin:8px 0 0" id="viewHint">Tap a numbered player in overhead view to inspect their assignment. In 3D views, tap a player model.</p>
+</section>
+<section class="panel infoPanel">
+ <div class="info"><div><strong id="stepTitle">Step 1 · Start in alignment</strong><p id="stepText">Point guard starts with the ball near the top. Teammates create width and prepare the action.</p></div><span class="pill" id="stepCount">1 / 4</span></div>
+</section>
+<section class="panel">
+ <strong id="playerTitle">Player 1 · Point guard</strong>
+ <p id="playerText" class="hint">Select a position or tap a player to inspect their job.</p>
+</section>
+<section class="panel bottom">
+ <strong>What changed in this version</strong>
+ <p class="hint">The play now animates through player movement. Third-person and first-person use simple 3D-style player models rather than flat position numbers. First-person follows your selected player and shows a court-level viewpoint; it is still a lightweight visual prototype, not a full physics-based 3D game.</p>
+</section>
+</main>
+<script>
+const $=id=>document.getElementById(id);
+const roles=['Point guard','Shooting guard','Small forward','Power forward','Center'];
+const offense=[
+ [{x:300,y:75},{x:465,y:145},{x:470,y:300},{x:210,y:300},{x:250,y:205}],
+ [{x:300,y:75},{x:365,y:125},{x:470,y:300},{x:250,y:245},{x:285,y:170}],
+ [{x:365,y:115},{x:300,y:75},{x:470,y:300},{x:250,y:245},{x:285,y:170}],
+ [{x:405,y:145},{x:300,y:75},{x:470,y:300},{x:250,y:245},{x:285,y:170}]
+];
+const defense=[
+ [{x:180,y:100},{x:420,y:100},{x:420,y:320},{x:180,y:320},{x:300,y:260}],
+ [{x:205,y:115},{x:395,y:130},{x:420,y:320},{x:180,y:320},{x:300,y:245}],
+ [{x:250,y:125},{x:380,y:150},{x:420,y:310},{x:180,y:320},{x:300,y:225}],
+ [{x:260,y:145},{x:360,y:160},{x:420,y:300},{x:180,y:320},{x:300,y:215}]
+];
+const steps=[
+ ['Start in alignment','Point guard starts with the ball near the top. The wings create width while the bigs prepare to screen and roll.'],
+ ['Enter the pistol action','The guard moves toward the wing as a teammate comes up for a handoff or ball screen. Watch the players change spacing.'],
+ ['Turn the corner','The ball handler attacks the gap. The screener rolls toward the basket while the weak-side players maintain spacing.'],
+ ['Read the defense','Look for the rolling big, the open wing, or the driving lane. The best read depends on how the defense reacts.']
+];
+let step=0,view='overhead',selected=1,timer=null,isSwitching=false,lookYaw=0,lookPitch=0;
+function positions(){return $('play').value==='basic'?[
+ [{x:300,y:65},{x:500,y:120},{x:500,y:300},{x:100,y:300},{x:100,y:120}],
+ [{x:300,y:65},{x:500,y:120},{x:500,y:300},{x:100,y:300},{x:100,y:120}],
+ [{x:300,y:65},{x:500,y:120},{x:500,y:300},{x:100,y:300},{x:100,y:120}],
+ [{x:300,y:65},{x:500,y:120},{x:500,y:300},{x:100,y:300},{x:100,y:120}]
+]:offense}
+function defensePositions(){return defense[Math.min(step,3)]}
+function pctX(x){return 3+(x/600)*94}
+function pctY(y){return 9+(y/420)*82}
+function drawOverhead(){
+ const g=$('overPlayers');g.innerHTML='';
+ positions()[step].forEach((p,i)=>{const c=document.createElementNS('http://www.w3.org/2000/svg','g');c.setAttribute('class','dot');c.style.cursor='pointer';c.onclick=()=>selectPlayer(i+1);const circle=document.createElementNS('http://www.w3.org/2000/svg','circle');circle.setAttribute('cx',p.x);circle.setAttribute('cy',p.y);circle.setAttribute('r',selected===i+1?20:16);circle.setAttribute('fill','#258bea');circle.setAttribute('stroke',selected===i+1?'#ffe18a':'white');circle.setAttribute('stroke-width',selected===i+1?5:2);const t=document.createElementNS('http://www.w3.org/2000/svg','text');t.setAttribute('x',p.x);t.setAttribute('y',p.y+5);t.setAttribute('fill','white');t.setAttribute('font-size','15');t.setAttribute('font-weight','bold');t.setAttribute('text-anchor','middle');t.textContent=i+1;c.append(circle,t);g.append(c)});
+ defensePositions().forEach((p,i)=>{const c=document.createElementNS('http://www.w3.org/2000/svg','g');const circle=document.createElementNS('http://www.w3.org/2000/svg','circle');circle.setAttribute('cx',p.x);circle.setAttribute('cy',p.y);circle.setAttribute('r',15);circle.setAttribute('fill','#df5151');circle.setAttribute('stroke','white');circle.setAttribute('stroke-width','2');const t=document.createElementNS('http://www.w3.org/2000/svg','text');t.setAttribute('x',p.x);t.setAttribute('y',p.y+5);t.setAttribute('fill','white');t.setAttribute('font-size','14');t.setAttribute('font-weight','bold');t.setAttribute('text-anchor','middle');t.textContent=i+1;c.append(circle,t);g.append(c)});
+ const ball=positions()[step][Math.min(step,2)];$('overBall').setAttribute('cx',ball.x+12);$('overBall').setAttribute('cy',ball.y-10);
+}
+
+function avatar(num,team,p){
+ const a=document.createElement('div');
+ a.className='avatar'+(team==='blue'&&num===selected?' selected':'');
+ a.style.setProperty('--team',team==='blue'?'#258bea':'#df5151');
+ a.style.left=pctX(p.x)+'%';a.style.top=pctY(p.y)+'%';
+ a.style.setProperty('--facing',team==='blue'?'0deg':'180deg');
+ a.innerHTML='<div class="head"></div><div class="body"></div><div class="number">'+num+'</div><div class="leg left"></div><div class="leg right"></div>';
+ if(team==='blue')a.onclick=()=>selectPlayer(num);
+ return a;
+}
+function draw3D(){
+ const g=$('avatars');g.innerHTML='';
+ const offenseNow=positions()[step],defenseNow=defensePositions();
+ offenseNow.forEach((p,i)=>g.appendChild(avatar(i+1,'blue',p)));
+ defenseNow.forEach((p,i)=>g.appendChild(avatar(i+1,'red',p)));
+ const ball=offenseNow[Math.min(step,2)];
+ $('ball3d').style.left=pctX(ball.x+12)+'%';$('ball3d').style.top=pctY(ball.y-10)+'%';
+ const scene=$('scene'),floor=$('floor'),models=[...g.children];
+ // The court is a fixed room/world layer. Never rotate or translate it in first-person.
+ scene.style.transform='none';
+ scene.style.transformOrigin='50% 50%';
+ floor.style.width='94%';floor.style.height='82%';floor.style.left='3%';floor.style.top='9%';
+ floor.style.transform='none';
+ if(view==='third'){
+  scene.style.transform='rotateX(57deg) rotateY(0deg) scale(.96) translateY(8%)';
+  models.forEach(m=>{
+   m.style.opacity='1';
+   m.style.left=m.dataset.worldX||m.style.left;
+   m.style.top=m.dataset.worldY||m.style.top;
+   m.style.transform='translate(-50%,-88%) rotateY(var(--facing))';
+  });
+  $('firstOverlay').style.display='none';
+ }
+ if(view==='first'){
+  // Keep every world object fixed. Rotate only the controlled player's facing direction.
+  models.forEach((m,i)=>{
+   const p=i<5?offenseNow[i]:defenseNow[i-5];
+   m.style.opacity='1';
+   m.style.left=pctX(p.x)+'%';
+   m.style.top=pctY(p.y)+'%';
+   if(i===selected-1){
+    m.style.opacity='0';
+    m.dataset.facing=String(lookYaw);
+   }
+   m.style.transform='translate(-50%,-88%) rotateY(var(--facing))';
+  });
+  $('firstOverlay').style.display='block';
+ }
+ $('ball3d').style.left=pctX(ball.x+12)+'%';
+ $('ball3d').style.top=pctY(ball.y-10)+'%';
+}
+
+function render(){
+ $('stageWrap').classList.toggle('switching',isSwitching);
+ $('freezeBanner').style.display=isSwitching?'block':'none';
+ $('courtOverhead').style.display=view==='overhead'?'block':'none';
+ $('scene').style.display=view==='overhead'?'none':'block';
+ $('firstOverlay').style.display=view==='first'?'block':'none';
+ $('viewLabel').textContent=view==='overhead'?'OVERHEAD · TACTICAL VIEW':view==='third'?'THIRD-PERSON · COURT VIEW':'FIRST-PERSON · YOUR PLAYER';
+ $('viewHint').textContent=view==='overhead'?'Tap a numbered blue player to inspect their assignment.':view==='third'?'Tap a blue 3D player model to select them.':'You are following your selected player. The blue arms mark your player viewpoint.';
+ drawOverhead();if(view!=='overhead')draw3D();
+ $('stepTitle').textContent=`Step ${step+1} · ${steps[step][0]}`;$('stepText').textContent=steps[step][1];$('stepCount').textContent=`${step+1} / 4`;
+ $('steps').innerHTML='';steps.forEach((s,i)=>{const b=document.createElement('button');b.textContent=i+1;b.className=i===step?'primary':'';b.disabled=isSwitching;b.onclick=()=>setStep(i);$('steps').appendChild(b)});
+ document.querySelectorAll('[data-view]').forEach(b=>b.classList.toggle('active',b.dataset.view===view));
+ document.querySelectorAll('[data-player]').forEach(b=>b.classList.toggle('active',Number(b.dataset.player)===selected));
+ const pad=$('lookPad');
+ pad.classList.toggle('disabled',view==='overhead');
+ $('lookStatus').textContent=view==='overhead'?'Switch to first- or third-person to enable free look.':`Free look ready · ${Math.round(lookYaw)}° horizontal · ${Math.round(lookPitch)}° vertical`;
+ updatePlayerInfo();
+}
+function updatePlayerInfo(){
+ $('position').value=String(selected);$('playerTitle').textContent=`Player ${selected} · ${roles[selected-1]}`;
+ $('playerText').textContent=[
+ 'Initiates the action, controls pace, and reads the screen or handoff.',
+ 'Creates an outlet, uses the handoff, or spaces for a catch-and-shoot opportunity.',
+ 'Maintains weak-side spacing and is ready to cut or receive a skip pass.',
+ 'Sets or slips the screen, then helps occupy the lane or short corner.',
+ 'Sets the main screen, rolls toward the basket, and looks for a pass.'
+ ][selected-1];
+}
+function selectPlayer(n){
+ const next=Math.max(1,Math.min(5,Number(n)||1));
+ if(next!==selected){
+  // Freeze the entire play before changing the point of view.
+  if(timer){clearInterval(timer);timer=null}
+  isSwitching=true;
+  selected=next;
+  $('playPause').textContent='▶ Resume Play';
+  render();
+ }
+}
+function setStep(n){if(isSwitching)return;step=Math.max(0,Math.min(3,n));render()}
+function pause(){
+ if(timer){clearInterval(timer);timer=null}
+ $('playPause').textContent=isSwitching?'▶ Resume Play':'▶ Play';
+}
+function resumePlay(){
+ isSwitching=false;
+ $('playPause').textContent='Ⅱ Pause';
+ render();
+ timer=setInterval(()=>{if(step===3){pause()}else setStep(step+1)},1500);
+}
+$('position').onchange=e=>selectPlayer(e.target.value);
+$('play').onchange=()=>{pause();step=0;render()};
+$('prev').onclick=()=>{if(!isSwitching){pause();setStep(step-1)}};
+$('next').onclick=()=>{if(!isSwitching){pause();setStep(step+1)}};
+$('playPause').onclick=()=>{if(timer){pause()}else{resumePlay()}};
+function setCameraView(nextView){
+ if(!['overhead','third','first'].includes(nextView)) return;
+ view=nextView;
+ // Reset the scene transform before applying the new camera view.
+ $('scene').style.transform='none';
+ $('floor').style.transform='';
+ render();
+}
+document.querySelectorAll('[data-view]').forEach(b=>{
+ b.addEventListener('click',e=>{
+  e.preventDefault();
+  setCameraView(b.dataset.view);
+ });
+});
+document.querySelectorAll('[data-player]').forEach(b=>{
+ b.addEventListener('click',()=>selectPlayer(Number(b.dataset.player)));
+});
+$('resetCamera').addEventListener('click',()=>{
+ lookYaw=0;lookPitch=0;render();
+});
+let lookPointer=null,lastLookX=0,lastLookY=0;
+$('lookPad').addEventListener('pointerdown',e=>{
+ if(view==='overhead')return;
+ lookPointer=e.pointerId;lastLookX=e.clientX;lastLookY=e.clientY;
+ $('lookPad').setPointerCapture(e.pointerId);
+});
+$('lookPad').addEventListener('pointermove',e=>{
+ if(lookPointer!==e.pointerId)return;
+ const dx=e.clientX-lastLookX,dy=e.clientY-lastLookY;
+ lastLookX=e.clientX;lastLookY=e.clientY;
+ lookYaw=Math.max(-65,Math.min(65,lookYaw+dx*.55));
+ lookPitch=Math.max(-18,Math.min(18,lookPitch-dy*.35));
+ render();
+});
+function endLook(e){if(lookPointer===e.pointerId)lookPointer=null;}
+$('lookPad').addEventListener('pointerup',endLook);
+$('lookPad').addEventListener('pointercancel',endLook);
+
+(function mountPracticePanel(){
+ const stage=$('stageWrap'),panel=document.createElement('div');
+ panel.id='practicePanel';panel.setAttribute('aria-label','CourtVision controls and play instructions');
+ const source=document.querySelector('main > section.panel:not(.courtPanel)');
+ const controls=source?.querySelector('.controls'),deck=source?.querySelector('.controlDeck'),actions=source?.querySelector('.actions'),stepsEl=source?.querySelector('.steps');
+ const info=document.querySelector('.infoPanel');
+ const playerInfo=[...document.querySelectorAll('main > section.panel')].find(el=>el.querySelector('#playerTitle'));
+ [controls,deck,actions,stepsEl,info,playerInfo].forEach(el=>{if(el)panel.appendChild(el)});
+ stage.appendChild(panel);
+})();
+
+render();
+</script>
+</body></html>
